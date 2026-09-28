@@ -10,3 +10,5 @@ data/*
 *.pt
 *.bin
 *.safetensors
+uv.lock
+
