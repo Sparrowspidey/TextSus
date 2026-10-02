@@ -1,59 +1,38 @@
+"""g-value functions used to referee Tournament sampling matches.
+
+g_layer(token, seed) is a pseudorandom function of (token id, layer, seed)
+that the detector can recompute exactly given the watermarking key -- no
+LLM access required.
+"""
+
+from __future__ import annotations
+
 import hashlib
 
 
-def generate_g_value(
-    token_id: int,
-    seed: int,
-    layer: int,
-    distribution: str = "bernoulli",
-) -> float | int:
+def _uniform_hash(token_id: int, layer: int, seed: int) -> float:
+    """Hash (token_id, layer, seed) to a value uniform in [0, 1)."""
+    payload = f"{token_id}|{layer}|{seed}"
+    digest = hashlib.sha256(payload.encode("utf-8")).digest()
+    as_int = int.from_bytes(digest[:8], byteorder="big")
+    return as_int / 2**64
+
+
+def g_value(token_id: int, layer: int, seed: int, distribution: str = "bernoulli") -> float:
+    """Compute the layer-``layer`` g-value of ``token_id`` under ``seed``.
+
+    Args:
+        token_id: candidate token id.
+        layer: tournament layer index (1-indexed).
+        seed: random seed for this generation step (from random_seed.py).
+        distribution: "bernoulli" (default, paper's main setting) or "uniform".
+
+    Returns:
+        0.0 or 1.0 for Bernoulli(0.5); a float in [0, 1) for Uniform.
     """
-    Generate a deterministic pseudorandom g-value for a token.
-
-    The SynthID-Text paper defines the g-value as a function of:
-        - token x
-        - random seed r
-        - tournament layer l
-
-    The hash output is converted to a value in [0, 1], then mapped
-    to the requested g-value distribution.
-
-    Parameters
-    ----------
-    token_id : int
-        Candidate token ID.
-    seed : int
-        Random seed for the current generation step.
-    layer : int
-        Tournament layer.
-    distribution : str, default="bernoulli"
-        G-value distribution:
-        - "bernoulli": Bernoulli(0.5)
-        - "uniform": Uniform[0, 1]
-
-    Returns
-    -------
-    float | int
-        Generated g-value.
-    """
-
-    # Hash token, layer, and seed together.
-    data = f"{token_id}|{layer}|{seed}".encode("utf-8")
-    digest = hashlib.sha256(data).digest()
-
-    # Convert hash to a deterministic value in [0, 1].
-    hash_value = int.from_bytes(digest, byteorder="big")
-    n = 8 * len(digest)
-    uniform_value = hash_value / (2**n)
-
+    u = _uniform_hash(token_id, layer, seed)
     if distribution == "bernoulli":
-        # Bernoulli(0.5)
-        return 1 if uniform_value >= 0.5 else 0
-
+        return 1.0 if u < 0.5 else 0.0
     if distribution == "uniform":
-        # Uniform[0, 1]
-        return uniform_value
-
-    raise ValueError(
-        f"Unsupported g-value distribution: {distribution}"
-    )
+        return u
+    raise ValueError(f"Unknown g-value distribution: {distribution!r}")
