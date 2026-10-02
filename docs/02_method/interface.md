@@ -9,6 +9,10 @@ The interfaces covered are:
 - Tournament Sampling
 - Mean watermark scoring
 - Weighted mean watermark scoring
+- Frequentist mean scoring
+- Frequentist weighted mean scoring
+- Parameterized Bayesian scoring
+- Watermark detection
 
 The mathematical and algorithmic requirements are derived from the SynthID-Text paper. Function names, Python representations, and exact input/output shapes are implementation-level interface decisions for TextSus.
 
@@ -299,9 +303,160 @@ The paper describes the weighted mean as a scoring function that re-weights the 
 
 ---
 
-## 6. Interface Relationships
+## 6. Frequentist Scoring
 
-The core Member 2 method follows this dependency chain:
+### Purpose
+
+Compute frequentist versions of the watermark scores by performing a hypothesis test on the mean-based watermark evidence.
+
+The paper proposes frequentist versions of the mean score and weighted mean score that produce a P value.
+
+### 6.1 Frequentist Mean Score
+
+#### Interface
+
+    frequentist_mean_score(
+        token_ids,
+        watermarking_key,
+        num_layers
+    ) -> p_value
+
+#### Inputs
+
+`token_ids` - Tokenized text containing the generated tokens
+
+`watermarking_key` - Key used to reproduce the random seeds
+
+`num_layers` - Number of tournament layers
+
+#### Output
+
+`p_value` - P value produced by the hypothesis test on the mean watermark score
+
+#### Requirements
+
+- The watermark score must be computed from the g-values of the generated tokens.
+- Random seeds must be reproduced using the watermarking key and token context.
+- The function must perform the corresponding frequentist hypothesis test.
+- The function must return a P value.
+
+### 6.2 Frequentist Weighted Mean Score
+
+#### Interface
+
+    frequentist_weighted_mean_score(
+        token_ids,
+        watermarking_key,
+        layer_weights
+    ) -> p_value
+
+#### Inputs
+
+`token_ids` - Tokenized text containing the generated tokens
+
+`watermarking_key` - Key used to reproduce the random seeds
+
+`layer_weights` - Weight assigned to each tournament layer
+
+#### Output
+
+`p_value` - P value produced by the hypothesis test on the weighted mean watermark score
+
+#### Requirements
+
+- The weighted watermark score must be computed from the g-values of the generated tokens.
+- Random seeds must be reproduced using the watermarking key and token context.
+- The corresponding layer weights must be applied.
+- The function must perform the corresponding frequentist hypothesis test.
+- The function must return a P value.
+
+---
+
+## 7. Parameterized Bayesian Scoring
+
+### Purpose
+
+Compute the posterior probability that a text is watermarked using a parameterized Bayesian scoring function.
+
+The paper describes this scoring function as learning from watermarked and unwatermarked texts.
+
+### Interface
+
+    bayesian_score(
+        token_ids,
+        watermarking_key,
+        parameters
+    ) -> posterior_probability
+
+### Inputs
+
+`token_ids` - Tokenized text containing the generated tokens
+
+`watermarking_key` - Key used to reproduce the random seeds
+
+`parameters` - Learned parameters of the Bayesian scoring function
+
+### Output
+
+`posterior_probability` - Posterior probability that the text is watermarked
+
+### Requirements
+
+- The scoring function must use the g-values associated with the generated tokens.
+- Random seeds must be reproduced using the watermarking key and token context.
+- The function must use learned parameters.
+- The parameters are learned from watermarked and unwatermarked texts.
+- The function must return the posterior probability that the text is watermarked.
+
+---
+
+## 8. Watermark Detection
+
+### Purpose
+
+Determine whether a tokenized text contains sufficient watermark evidence to be classified as watermarked.
+
+The detection process uses the watermark score and a detection threshold.
+
+### Interface
+
+    detect_watermark(
+        score,
+        threshold
+    ) -> is_watermarked
+
+### Inputs
+
+`score` - Watermark score calculated from the generated text
+
+`threshold` - Detection threshold used to determine whether the score provides sufficient watermark evidence
+
+### Output
+
+`is_watermarked` - Boolean indicating whether the text is classified as watermarked
+
+### Detection rule
+
+    score >= threshold
+        ↓
+    watermarked
+
+    score < threshold
+        ↓
+    non-watermarked
+
+### Requirements
+
+- The detection function must accept a watermark score.
+- The detection function must accept a configurable threshold.
+- The function must return a boolean detection decision.
+- The threshold determines whether sufficient watermark evidence is present.
+
+---
+
+## 9. Interface Relationships
+
+The core method follows this dependency chain:
 
     Previous token context
             +
@@ -324,10 +479,14 @@ The core Member 2 method follows this dependency chain:
     Scoring Function
             ↓
     Watermark Score
+            ↓
+    Detection
+            ↓
+    Watermarked / Non-watermarked
 
 ---
 
-## 7. Data and Shape Conventions
+## 10. Data and Shape Conventions
 
 | Symbol                | Meaning                               | Shape                 |
 | `V`                   | LLM vocabulary                        | vocabulary-sized      |
@@ -344,7 +503,7 @@ The core Member 2 method follows this dependency chain:
 
 ---
 
-## 8. Paper-Derived Requirements
+## 11. Paper-Derived Requirements
 
 The following concepts are based on the SynthID-Text paper:
 
@@ -363,7 +522,7 @@ The following concepts are based on the SynthID-Text paper:
 
 ---
 
-## 9. TextSus Implementation Decisions
+## 12. TextSus Implementation Decisions
 
 The following are implementation-level decisions for this repository and are not claimed to be literal Python APIs from the paper:
 
@@ -379,20 +538,22 @@ These decisions should remain consistent with this interface specification as im
 
 ---
 
-## 10. Scope
+## 13. Scope
 
-This interface specification covers the current Member 2 core-method task:
+This interface specification covers the core-method task:
 
 - Seed generation
 - G-value generation
 - Tournament Sampling
 - Mean scoring
 - Weighted mean scoring
+- Frequentist mean scoring
+- Frequentist weighted mean scoring
+- Parameterized Bayesian scoring
+- Watermark detection
 
 The following are intentionally outside the scope of this interface specification and will be handled by later issues:
 
-- Detection decisions
-- Detection thresholds
 - Repeated context masking
 - Distortionary variants
 - Vectorized Tournament Sampling
@@ -402,7 +563,7 @@ The following are intentionally outside the scope of this interface specificatio
 
 ---
 
-## 11. References
+## 14. References
 
 Primary source:
 
