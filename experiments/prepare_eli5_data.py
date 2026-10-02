@@ -6,6 +6,13 @@ Usage:
 Writes data/eli5_dev.jsonl and data/eli5_test.jsonl, each line
 {"prompt": "..."}. Smaller n than the paper's 10,000/10,000 -- adjust
 once the pipeline is proven out and you know your compute budget.
+
+Note: the original "eli5" and "eli5_category" datasets on the Hub use a
+loading script, which recent versions of the `datasets` library (3.x+)
+no longer support at all, and "eli5" is also defunct (Reddit locked down
+the API it depended on). We use "sentence-transformers/eli5" instead --
+a parquet-format mirror of ELI5 question/answer pairs built for training
+sentence embeddings, which loads fine with no script and no login.
 """
 
 from __future__ import annotations
@@ -16,6 +23,21 @@ import random
 from pathlib import Path
 
 from datasets import load_dataset
+
+# Column names to check, in priority order, across possible dataset formats.
+_QUESTION_COLUMN_CANDIDATES = ["question", "anchor", "query", "title", "text"]
+
+
+def _extract_questions(ds) -> list[str]:
+    columns = ds.column_names
+    for col in _QUESTION_COLUMN_CANDIDATES:
+        if col in columns:
+            print(f"Using column '{col}' as the prompt text.")
+            return [str(x).strip() for x in ds[col] if x and str(x).strip()]
+    raise KeyError(
+        f"None of {_QUESTION_COLUMN_CANDIDATES} found in dataset columns: {columns}. "
+        "Update _QUESTION_COLUMN_CANDIDATES in this script to match."
+    )
 
 
 def main():
@@ -28,9 +50,9 @@ def main():
 
     random.seed(args.seed)
 
-    # eli5_category is the maintained replacement for the original eli5 dataset.
-    ds = load_dataset("eli5_category", split="train")
-    questions = [ex["title"].strip() for ex in ds if ex.get("title")]
+    ds = load_dataset("sentence-transformers/eli5", "pair", split="train")
+    questions = _extract_questions(ds)
+    questions = list(dict.fromkeys(questions))  # de-duplicate, keep order
     random.shuffle(questions)
 
     needed = args.n_dev + args.n_test

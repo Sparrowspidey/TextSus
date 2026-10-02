@@ -103,9 +103,9 @@ TextSus/
 
 | Member | Area | Owns | Covers |
 |---|---|---|---|
-| **Member 1** — _name_ | Background, existing approaches, SynthID-Text framework | `docs/01_background/`, `demo/`, report chapters 1–2 | Why identification is needed; retrieval-based and post-hoc detection and their limits; generative vs edit-based vs data-driven watermarking; seed generator / sampler / scorer framework; SynthID-Text and Tournament sampling overview |
-| **Member 2** — _name_ | Core technical method | `src/textsus/{seed,gvalues,sampling,scoring,detection}/`, `docs/02_method/`, `tests/`, report chapter 3 | Autoregressive generation, top-k / top-p / temperature; keys, sliding-window hashing, pseudorandom functions; g-values; Tournament sampling (candidates, layers, winner selection); scoring and thresholds; non-distortionary vs distortionary variants and the detectability–quality trade-off |
-| **Member 3** — _name_ | Experiments, scalability, results, limitations | `src/textsus/{generation,evaluation}/`, `experiments/`, `results/`, `docs/03_evaluation/`, report chapters 4–5 | Setup (Gemma 2B/7B, Mistral 7B, ELI5); quality evaluation and human studies; SynthID-Text vs Gumbel and Soft Red List; TPR at fixed FPR; latency and vectorized implementation; speculative sampling; limitations, conclusion, future work |
+| **Himasai Vihar Suraboina** — _name_ | Background, existing approaches, SynthID-Text framework | `docs/01_background/`, `demo/`, report chapters 1–2 | Why identification is needed; retrieval-based and post-hoc detection and their limits; generative vs edit-based vs data-driven watermarking; seed generator / sampler / scorer framework; SynthID-Text and Tournament sampling overview |
+| **Kurri Hiranya Venkata Reddy** — _name_ | Core technical method | `src/textsus/{seed,gvalues,sampling,scoring,detection}/`, `docs/02_method/`, `tests/`, report chapter 3 | Autoregressive generation, top-k / top-p / temperature; keys, sliding-window hashing, pseudorandom functions; g-values; Tournament sampling (candidates, layers, winner selection); scoring and thresholds; non-distortionary vs distortionary variants and the detectability–quality trade-off |
+| **Vivek Ediga** — _name_ | Experiments, scalability, results, limitations | `src/textsus/{generation,evaluation}/`, `experiments/`, `results/`, `docs/03_evaluation/`, report chapters 4–5 | Setup (Gemma 2B/7B, Mistral 7B, ELI5); quality evaluation and human studies; SynthID-Text vs Gumbel and Soft Red List; TPR at fixed FPR; latency and vectorized implementation; speculative sampling; limitations, conclusion, future work |
 
 Member 3 depends on the sampling and scoring modules from Member 2, so the interfaces in `src/textsus/` should be agreed early (see [Roadmap](#roadmap)).
 
@@ -131,7 +131,20 @@ Dependencies live in `pyproject.toml` (commit `uv.lock` too so everyone gets ide
 
 **Models.** The paper uses Gemma 2B-IT, Gemma 7B-IT and Mistral 7B-IT. Gemma requires accepting its licence on Hugging Face and logging in (`huggingface-cli login`). For quick development on limited hardware, any small Hugging Face causal LM can be swapped in through `configs/default.yaml`.
 
-**Data.** Prompts come from the ELI5 dataset; see `data/README.md` for download and split instructions.
+**Data.** Prompts come from `sentence-transformers/eli5` on Hugging Face (a parquet-format
+mirror of ELI5 question/answer pairs). The original `eli5` and `eli5_category`
+datasets are no longer loadable -- they use loading scripts, which recent
+`datasets` library versions dropped support for, and `eli5` itself is defunct
+(Reddit locked down the API it depended on).
+
+Regenerate with:
+    uv run python experiments/prepare_eli5_data.py --n_dev 200 --n_test 200
+
+Produces:
+- eli5_dev.jsonl  — development/prompt-tuning set
+- eli5_test.jsonl — held-out test set used for final experiments
+
+Both are git-ignored — regenerate locally rather than committing them.
 
 ---
 
