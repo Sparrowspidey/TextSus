@@ -307,13 +307,10 @@ The paper describes the weighted mean as a scoring function that re-weights the 
 
 ### Purpose
 
-Compute frequentist versions of the watermark scores by performing a hypothesis test on the mean-based watermark evidence.
+Compute frequentist versions of the mean and weighted mean
+watermark scores by performing hypothesis tests.
 
-The paper proposes frequentist versions of the mean score and weighted mean score that produce a P value.
-
-### 6.1 Frequentist Mean Score
-
-#### Interface
+### Frequentist Mean
 
     frequentist_mean_score(
         token_ids,
@@ -321,28 +318,11 @@ The paper proposes frequentist versions of the mean score and weighted mean scor
         num_layers
     ) -> p_value
 
-#### Inputs
+The returned P value measures the probability, under the
+unwatermarked null hypothesis, of observing watermark evidence
+at least as strong as the observed evidence.
 
-`token_ids` - Tokenized text containing the generated tokens
-
-`watermarking_key` - Key used to reproduce the random seeds
-
-`num_layers` - Number of tournament layers
-
-#### Output
-
-`p_value` - P value produced by the hypothesis test on the mean watermark score
-
-#### Requirements
-
-- The watermark score must be computed from the g-values of the generated tokens.
-- Random seeds must be reproduced using the watermarking key and token context.
-- The function must perform the corresponding frequentist hypothesis test.
-- The function must return a P value.
-
-### 6.2 Frequentist Weighted Mean Score
-
-#### Interface
+### Frequentist Weighted Mean
 
     frequentist_weighted_mean_score(
         token_ids,
@@ -350,25 +330,13 @@ The paper proposes frequentist versions of the mean score and weighted mean scor
         layer_weights
     ) -> p_value
 
-#### Inputs
+The weighted version applies the corresponding layer weights
+before performing the hypothesis test.
 
-`token_ids` - Tokenized text containing the generated tokens
+### Interpretation
 
-`watermarking_key` - Key used to reproduce the random seeds
-
-`layer_weights` - Weight assigned to each tournament layer
-
-#### Output
-
-`p_value` - P value produced by the hypothesis test on the weighted mean watermark score
-
-#### Requirements
-
-- The weighted watermark score must be computed from the g-values of the generated tokens.
-- Random seeds must be reproduced using the watermarking key and token context.
-- The corresponding layer weights must be applied.
-- The function must perform the corresponding frequentist hypothesis test.
-- The function must return a P value.
+Smaller P values provide stronger evidence against the
+unwatermarked null hypothesis.
 
 ---
 
@@ -376,9 +344,7 @@ The paper proposes frequentist versions of the mean score and weighted mean scor
 
 ### Purpose
 
-Compute the posterior probability that a text is watermarked using a parameterized Bayesian scoring function.
-
-The paper describes this scoring function as learning from watermarked and unwatermarked texts.
+Compute the posterior probability that a text is watermarked.
 
 ### Interface
 
@@ -390,52 +356,43 @@ The paper describes this scoring function as learning from watermarked and unwat
 
 ### Inputs
 
-`token_ids` - Tokenized text containing the generated tokens
+`token_ids`
+- Tokenized text.
 
-`watermarking_key` - Key used to reproduce the random seeds
+`watermarking_key`
+- Key used to reproduce the random seeds.
 
-`parameters` - Learned parameters of the Bayesian scoring function
+`parameters`
+- Learned Bayesian detector parameters.
 
 ### Output
 
-`posterior_probability` - Posterior probability that the text is watermarked
+`posterior_probability`
+- Posterior probability that the text is watermarked.
 
-### Requirements
+### Training requirement
 
-- The scoring function must use the g-values associated with the generated tokens.
-- Random seeds must be reproduced using the watermarking key and token context.
-- The function must use learned parameters.
-- The parameters are learned from watermarked and unwatermarked texts.
-- The function must return the posterior probability that the text is watermarked.
+The Bayesian parameters are learned from watermarked and
+unwatermarked text.
+
+The Bayesian detector therefore cannot be used with arbitrary
+untrained parameters.
 
 ---
-
 ## 8. Watermark Detection
 
 ### Purpose
 
-Determine whether a tokenized text contains sufficient watermark evidence to be classified as watermarked.
+Determine whether sufficient watermark evidence is present.
 
-The detection process uses the watermark score and a detection threshold.
-
-### Interface
+### Score-based interface
 
     detect_watermark(
         score,
         threshold
     ) -> is_watermarked
 
-### Inputs
-
-`score` - Watermark score calculated from the generated text
-
-`threshold` - Detection threshold used to determine whether the score provides sufficient watermark evidence
-
-### Output
-
-`is_watermarked` - Boolean indicating whether the text is classified as watermarked
-
-### Detection rule
+### Rule
 
     score >= threshold
         ↓
@@ -445,12 +402,26 @@ The detection process uses the watermark score and a detection threshold.
         ↓
     non-watermarked
 
-### Requirements
+This rule is used for scoring methods where larger scores indicate
+stronger watermark evidence, including mean, weighted mean, and
+Bayesian posterior scores.
 
-- The detection function must accept a watermark score.
-- The detection function must accept a configurable threshold.
-- The function must return a boolean detection decision.
-- The threshold determines whether sufficient watermark evidence is present.
+### Frequentist detection
+
+    detect_frequentist(
+        p_value,
+        alpha
+    ) -> is_watermarked
+
+### Rule
+
+    p_value <= alpha
+        ↓
+    watermarked
+
+    p_value > alpha
+        ↓
+    non-watermarked
 
 ---
 
