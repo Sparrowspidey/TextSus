@@ -1,6 +1,6 @@
 import random
 
-from src.textsus.gvalues.gvalues import generate_g_value
+from textsus.gvalues.gvalues import generate_g_value
 
 
 def single_layer_tournament_sample(

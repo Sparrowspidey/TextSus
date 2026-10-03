@@ -26,4 +26,3 @@ def test_different_key_produces_different_seed():
     seed2 = generate_random_seed(tokens, 54321)
 
     assert seed1 != seed2
-    
