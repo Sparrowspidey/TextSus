@@ -1,0 +1,49 @@
+{
+  "tournament": {
+    "2": {
+      "mean_score": 0.6333333333333333,
+      "tpr_at_fpr": 1.0,
+      "mean_log_perplexity": 2.4094271985282045,
+      "n_samples": 10
+    },
+    "3": {
+      "mean_score": 0.7283333333333333,
+      "tpr_at_fpr": 1.0,
+      "mean_log_perplexity": 2.4195598148930455,
+      "n_samples": 10
+    },
+    "4": {
+      "mean_score": 0.7625000000000001,
+      "tpr_at_fpr": 1.0,
+      "mean_log_perplexity": 2.473783202088106,
+      "n_samples": 10
+    }
+  },
+  "soft_red_list": {
+    "0.0": {
+      "mean_z_score": -0.46023248659804034,
+      "tpr_at_fpr": 0.1,
+      "mean_log_perplexity": 2.411548723794846,
+      "n_samples": 10
+    },
+    "1.0": {
+      "mean_z_score": 2.4596747752497685,
+      "tpr_at_fpr": 0.9,
+      "mean_log_perplexity": 2.5383350584213926,
+      "n_samples": 10
+    },
+    "2.0": {
+      "mean_z_score": 4.829906831399546,
+      "tpr_at_fpr": 1.0,
+      "mean_log_perplexity": 2.508370291811414,
+      "n_samples": 10
+    },
+    "4.0": {
+      "mean_z_score": 7.848598601024261,
+      "tpr_at_fpr": 1.0,
+      "mean_log_perplexity": 2.7028229486953053,
+      "n_samples": 10
+    }
+  },
+  "unwatermarked_log_perplexity": 2.4063112959561375
+}
