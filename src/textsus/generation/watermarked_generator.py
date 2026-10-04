@@ -1,7 +1,7 @@
 """Watermarked (and unwatermarked) text generation with a HuggingFace model.
 
-This is Member 3's main integration point: it plugs Tournament sampling
-into a normal autoregressive generation loop, one token at a time.
+Plugs the team's real Tournament sampling implementation
+(textsus.sampling.tournament) into a token-by-token generation loop.
 """
 
 from __future__ import annotations
@@ -12,7 +12,8 @@ from typing import Optional
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from textsus.sampling.tournament import multilayer_tournament_sample
+from textsus.sampling.tournament import tournament_sample
+from textsus.seed.random_seed import generate_random_seed
 
 
 @dataclass
@@ -28,10 +29,8 @@ class WatermarkedGenerator:
         model_name: str,
         key: int,
         m: int = 4,
-        H: int = 4,
         top_k: int = 100,
         temperature: float = 0.7,
-        distribution: str = "bernoulli",
         device: Optional[str] = None,
     ):
         """
@@ -39,20 +38,19 @@ class WatermarkedGenerator:
             model_name: HuggingFace model id, e.g. "google/gemma-2b-it".
             key: secret watermarking key (any int -- keep it fixed within
                 an experiment so the detector can use the same key).
-            m: number of tournament layers (see tournament.py for guidance).
-            H: sliding-window context size for the seed generator.
+            m: number of tournament layers. N = 2**m candidates are drawn
+               per step -- keep this small (4-8) for CPU-scale experiments.
+               Note: the sliding-window size H is fixed at 4 inside
+               textsus.seed.random_seed (not configurable from here).
             top_k: truncate the LLM distribution to the top-k tokens before
                 sampling (paper default: 100).
             temperature: softmax temperature applied before top-k.
-            distribution: g-value distribution, "bernoulli" or "uniform".
             device: "cuda", "cpu", or None to auto-detect.
         """
         self.key = key
         self.m = m
-        self.H = H
         self.top_k = top_k
         self.temperature = temperature
-        self.distribution = distribution
 
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -86,6 +84,7 @@ class WatermarkedGenerator:
         input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.device)
         generated: list[int] = []
         eos_id = self.tokenizer.eos_token_id
+        n_candidates = 2**self.m
 
         for _ in range(max_new_tokens):
             outputs = self.model(input_ids)
@@ -93,14 +92,11 @@ class WatermarkedGenerator:
             probs = self._next_token_probs(next_logits)
 
             if watermark:
-                next_token = multilayer_tournament_sample(
-                    probs,
-                    context_tokens=generated,
-                    key=self.key,
-                    m=self.m,
-                    H=self.H,
-                    distribution=self.distribution,
-                )
+                candidates = torch.multinomial(
+                    probs, n_candidates, replacement=True
+                ).tolist()
+                seed = generate_random_seed(generated, self.key)
+                next_token = tournament_sample(candidates, seed, num_layers=self.m)
             else:
                 next_token = torch.multinomial(probs, 1).item()
 

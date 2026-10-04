@@ -15,9 +15,9 @@ import argparse
 import json
 from pathlib import Path
 
-from textsus.detection.detector import Detector
 from textsus.evaluation.metrics import tpr_at_fpr
 from textsus.generation.watermarked_generator import WatermarkedGenerator
+from textsus.scoring.mean_score import mean_score
 
 
 def load_prompts(path: str, n: int) -> list[str]:
@@ -38,7 +38,6 @@ def main():
     parser.add_argument("--max_new_tokens", type=int, default=100)
     parser.add_argument("--key", type=int, default=42)
     parser.add_argument("--m", type=int, default=4, help="tournament layers")
-    parser.add_argument("--H", type=int, default=4, help="seed sliding-window size")
     parser.add_argument("--fpr", type=float, default=0.01)
     parser.add_argument("--out", type=str, default="results/tables/detectability.json")
     args = parser.parse_args()
@@ -54,8 +53,7 @@ def main():
             "How does the internet work?",
         ][: args.n_prompts]
 
-    generator = WatermarkedGenerator(model_name=args.model, key=args.key, m=args.m, H=args.H)
-    detector = Detector(key=args.key, m=args.m, H=args.H)
+    generator = WatermarkedGenerator(model_name=args.model, key=args.key, m=args.m)
 
     watermarked_scores, unwatermarked_scores = [], []
 
@@ -63,10 +61,15 @@ def main():
         wm = generator.generate(prompt, max_new_tokens=args.max_new_tokens, watermark=True)
         uwm = generator.generate(prompt, max_new_tokens=args.max_new_tokens, watermark=False)
 
-        watermarked_scores.append(detector.score(wm.token_ids))
-        unwatermarked_scores.append(detector.score(uwm.token_ids))
-        print(f"[{i+1}/{len(prompts)}] wm_score={watermarked_scores[-1]:.3f} "
-              f"uwm_score={unwatermarked_scores[-1]:.3f}")
+        if not wm.token_ids or not uwm.token_ids:
+            print(f"[{i+1}/{len(prompts)}] skipped (empty generation)")
+            continue
+
+        wm_score = mean_score(wm.token_ids, args.key, num_layers=args.m)
+        uwm_score = mean_score(uwm.token_ids, args.key, num_layers=args.m)
+        watermarked_scores.append(wm_score)
+        unwatermarked_scores.append(uwm_score)
+        print(f"[{i+1}/{len(prompts)}] wm_score={wm_score:.3f} uwm_score={uwm_score:.3f}")
 
     tpr, threshold = tpr_at_fpr(watermarked_scores, unwatermarked_scores, fpr=args.fpr)
 
@@ -75,7 +78,6 @@ def main():
         "n_prompts": len(prompts),
         "max_new_tokens": args.max_new_tokens,
         "m": args.m,
-        "H": args.H,
         "fpr": args.fpr,
         "threshold": threshold,
         "tpr_at_fpr": tpr,
