@@ -1,0 +1,41 @@
+{
+  "top_k": 500,
+  "max_new_tokens": 80,
+  "results": {
+    "1": {
+      "mean_wm_score": 0.64125,
+      "mean_uwm_score": 0.535,
+      "tpr_at_fpr": 0.6,
+      "threshold": 0.5988749999999999,
+      "n_samples": 10
+    },
+    "2": {
+      "mean_wm_score": 0.6525,
+      "mean_uwm_score": 0.526875,
+      "tpr_at_fpr": 1.0,
+      "threshold": 0.5795625000000001,
+      "n_samples": 10
+    },
+    "4": {
+      "mean_wm_score": 0.653125,
+      "mean_uwm_score": 0.5153125000000001,
+      "tpr_at_fpr": 1.0,
+      "threshold": 0.53721875,
+      "n_samples": 10
+    },
+    "6": {
+      "mean_wm_score": 0.6395833333333333,
+      "mean_uwm_score": 0.506875,
+      "tpr_at_fpr": 1.0,
+      "threshold": 0.541875,
+      "n_samples": 10
+    },
+    "8": {
+      "mean_wm_score": 0.635625,
+      "mean_uwm_score": 0.50375,
+      "tpr_at_fpr": 1.0,
+      "threshold": 0.538234375,
+      "n_samples": 10
+    }
+  }
+}
