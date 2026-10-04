@@ -1,0 +1,32 @@
+{
+  "model": "gpt2",
+  "max_new_tokens": 100,
+  "n_runs": 3,
+  "m": 4,
+  "results": {
+    "unwatermarked": {
+      "mean_ms_per_token": 88.71043899999374,
+      "std_ms_per_token": 1.9289575076868373,
+      "n_runs": 3,
+      "overhead_pct_vs_unwatermarked": 0.0
+    },
+    "tournament": {
+      "mean_ms_per_token": 86.59782466667214,
+      "std_ms_per_token": 0.7786864696593802,
+      "n_runs": 3,
+      "overhead_pct_vs_unwatermarked": -2.3814720760447945
+    },
+    "gumbel": {
+      "mean_ms_per_token": 87.8679649999928,
+      "std_ms_per_token": 0.7675380895258609,
+      "n_runs": 3,
+      "overhead_pct_vs_unwatermarked": -0.9496898104641408
+    },
+    "soft_red_list": {
+      "mean_ms_per_token": 87.27464233333497,
+      "std_ms_per_token": 0.7958097020547524,
+      "n_runs": 3,
+      "overhead_pct_vs_unwatermarked": -1.6185205290877611
+    }
+  }
+}
