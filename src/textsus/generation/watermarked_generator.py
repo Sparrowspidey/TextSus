@@ -17,6 +17,7 @@ from typing import Optional
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from textsus.sampling.distortionary_tournament import distortionary_tournament_sample
 from textsus.sampling.gumbel import gumbel_sample
 from textsus.sampling.soft_red_list import apply_soft_red_list_bias
 from textsus.sampling.tournament import tournament_sample
@@ -41,6 +42,7 @@ class WatermarkedGenerator:
         temperature: float = 0.7,
         gamma: float = 0.5,
         delta: float = 2.0,
+        competitors_per_match: int = 2,
         device: Optional[str] = None,
     ):
         """
@@ -49,8 +51,10 @@ class WatermarkedGenerator:
             key: secret watermarking key (any int -- keep it fixed within
                 an experiment so the detector can use the same key).
             m: number of Tournament sampling layers (only used when
-               method="tournament"). N = 2**m candidates are drawn per
-               step -- keep this small (4-8) for CPU-scale experiments.
+               method="tournament"). N = competitors_per_match**m candidates
+               are drawn per step -- keep N small enough that top_k comfortably
+               exceeds it, or duplicate candidates will saturate the tournament
+               (see the layer-ablation experiment for why this matters).
                Note: the sliding-window size H is fixed at 4 inside
                textsus.seed.random_seed (not configurable from here).
             top_k: truncate the LLM distribution to the top-k tokens before
@@ -59,6 +63,12 @@ class WatermarkedGenerator:
             gamma: green-list fraction (only used when method="soft_red_list").
             delta: green-list logit bias strength (only used when
                 method="soft_red_list"; higher = stronger, more distortionary).
+            competitors_per_match: number of candidates competing in each
+                Tournament match (only used when method="tournament").
+                2 (default) reproduces the paper's non-distortionary
+                configuration and uses the team's tested tournament_sample().
+                >2 is the distortionary configuration (stronger watermark,
+                more quality cost) and uses distortionary_tournament_sample().
             device: "cuda", "cpu", or None to auto-detect.
         """
         self.key = key
@@ -67,6 +77,7 @@ class WatermarkedGenerator:
         self.temperature = temperature
         self.gamma = gamma
         self.delta = delta
+        self.competitors_per_match = competitors_per_match
 
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -123,7 +134,7 @@ class WatermarkedGenerator:
         input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids.to(self.device)
         generated: list[int] = []
         eos_id = self.tokenizer.eos_token_id
-        n_candidates = 2**self.m
+        n_candidates = self.competitors_per_match**self.m
 
         for _ in range(max_new_tokens):
             outputs = self.model(input_ids)
@@ -139,7 +150,13 @@ class WatermarkedGenerator:
                     probs, n_candidates, replacement=True
                 ).tolist()
                 seed = generate_random_seed(generated, self.key)
-                next_token = tournament_sample(candidates, seed, num_layers=self.m)
+                if self.competitors_per_match == 2:
+                    next_token = tournament_sample(candidates, seed, num_layers=self.m)
+                else:
+                    next_token = distortionary_tournament_sample(
+                        candidates, seed, num_layers=self.m,
+                        competitors_per_match=self.competitors_per_match,
+                    )
 
             elif method == "gumbel":
                 probs = self._next_token_probs(next_logits)
