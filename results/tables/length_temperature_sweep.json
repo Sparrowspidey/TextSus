@@ -1,0 +1,25 @@
+{
+  "0.7": {
+    "50": {
+      "tournament_tpr": 0.9,
+      "tournament_threshold": 0.5882,
+      "gumbel_tpr": 1.0,
+      "gumbel_threshold": 1.3993202552658075,
+      "n_samples": 10
+    },
+    "100": {
+      "tournament_tpr": 0.9,
+      "tournament_threshold": 0.56275,
+      "gumbel_tpr": 1.0,
+      "gumbel_threshold": 1.2255689833723458,
+      "n_samples": 10
+    },
+    "200": {
+      "tournament_tpr": 0.9,
+      "tournament_threshold": 0.5394375,
+      "gumbel_tpr": 1.0,
+      "gumbel_threshold": 1.0872758084288958,
+      "n_samples": 10
+    }
+  }
+}

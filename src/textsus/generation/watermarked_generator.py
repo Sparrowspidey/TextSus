@@ -101,6 +101,7 @@ class WatermarkedGenerator:
         max_new_tokens: int = 200,
         watermark: bool = True,
         method: str = "tournament",
+        ignore_eos: bool = False,
     ) -> GenerationResult:
         """Generate a response to ``prompt``, token by token.
 
@@ -110,6 +111,11 @@ class WatermarkedGenerator:
 
         ``method`` selects the watermarking scheme when watermark=True:
         "tournament" (default), "gumbel", or "soft_red_list".
+
+        ``ignore_eos``: if True, never stop early on an end-of-sequence
+        token -- always generate exactly ``max_new_tokens``. Use this for
+        length-sweep experiments where every sample needs the same token
+        count; leave it False for normal, natural-length generation.
         """
         if watermark and method not in ("tournament", "gumbel", "soft_red_list"):
             raise ValueError(f"Unknown method: {method!r}")
@@ -153,7 +159,7 @@ class WatermarkedGenerator:
                 probs = torch.softmax(biased_logits, dim=-1)
                 next_token = token_ids[torch.multinomial(probs, 1).item()]
 
-            if next_token == eos_id:
+            if next_token == eos_id and not ignore_eos:
                 break
 
             generated.append(next_token)
