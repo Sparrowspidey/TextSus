@@ -1,0 +1,455 @@
+# Generative vs Edit-Based vs Data-Driven Watermarking
+
+## 1. Overview
+
+Text watermarking can be applied at different stages of the LLM
+pipeline:
+
+1.  **Generative watermarking** --- watermark during text generation.
+2.  **Edit-based watermarking** --- modify already-generated text.
+3.  **Data-driven watermarking** --- alter the model's training data so
+    particular triggered outputs become watermarked.
+
+## 2. Comparison
+
+  -----------------------------------------------------------------------
+  Approach          Where applied     Main idea         Key
+                                                        characteristic
+  ----------------- ----------------- ----------------- -----------------
+  **Generative**    During generation Modify the        Watermark is
+                                      sampling process  integrated into
+                                                        generation
+
+  **Edit-based**    After generation  Use               Can introduce
+                                      transformations   noticeable
+                                      such as synonym   artefacts
+                                      substitution or   
+                                      special Unicode   
+                                      characters        
+
+  **Data-driven**   During training   Train using       Watermarked
+                                      specific trigger  output occurs
+                                      phrases           when trigger
+                                                        phrases are used
+  -----------------------------------------------------------------------
+
+### 2.1 Generative Watermarking
+
+Generative watermarking applies the watermark while the LLM is
+generating text. The LLM produces a probability distribution for the
+next token, and the watermarking mechanism influences the sampling
+process so that the generated sequence contains a detectable statistical
+signal.
+
+The paper describes three main components:
+
+-   Random seed generator
+-   Sampling algorithm
+-   Scoring function
+
+SynthID-Text uses **Tournament Sampling** as its sampling algorithm.
+
+### 2.2 Edit-Based Watermarking
+
+Edit-based watermarking modifies text after it has already been
+generated. Examples mentioned in the paper include synonym substitution
+and inserting special Unicode characters. Such methods can potentially
+leave noticeable artefacts.
+
+### 2.3 Data-Driven Watermarking
+
+Data-driven watermarking changes the model's training data. The paper
+describes training the LLM using specific trigger phrases. The model
+produces watermarked outputs when prompted with those trigger phrases.
+Its primary objective in the paper is identifying unauthorized misuse
+rather than broadly attributing arbitrary generated text to an LLM.
+
+# 3. Three Components of Generative Watermarking
+
+``` text
+                Watermarking Key
+                       |
+                       v
+              Random Seed Generator
+                       |
+                       v
+                  Random Seed r_t
+                       |
+                       v
+Prompt / Context --> LLM --> Probability Distribution
+                              p_LM(. | x_<t)
+                                      |
+                                      v
+                              Sampling Algorithm
+                                      |
+                                      v
+                                Output Token x_t
+                                      |
+                                      v
+                              Append to Text
+```
+
+For detection:
+
+``` text
+Generated Text + Watermarking Key
+              |
+              v
+       Scoring Function
+              |
+              v
+          Score(x)
+              |
+              v
+       Compare with Threshold
+              |
+       +------+------+
+       |             |
+       v             v
+ Watermarked     Not Watermarked
+```
+
+## 3.1 Random Seed Generator
+
+The random seed generator produces a seed `r_t` at each generation step.
+The seed can depend on the preceding text/context and the watermarking
+key.
+
+In the experiments, SynthID-Text uses a sliding-window method in which
+the seed is a hash of the most recent `H` tokens together with the
+watermarking key.
+
+``` text
+H = 4
+```
+
+Conceptually:
+
+``` text
+r_t = Hash(x_(t-H), ..., x_(t-1), watermarking_key)
+```
+
+## 3.2 Sampling Algorithm
+
+The sampling algorithm uses the random seed together with the LLM's
+next-token probability distribution.
+
+``` text
+Context + Watermark Key
+          |
+          v
+   Random Seed Generator
+          |
+          v
+       Random Seed
+          |
+          v
+ LLM Probability Distribution
+          |
+          v
+    Sampling Algorithm
+          |
+          v
+    Watermarked Token
+```
+
+The sampling algorithm introduces a correlation between the generated
+token and the random seed. The detector later measures this correlation.
+
+## 3.3 Scoring Function
+
+The scoring function takes a piece of text and the watermarking key and
+calculates a score representing the strength of the watermark evidence.
+
+``` text
+Text + Watermark Key
+        |
+        v
+ Scoring Function
+        |
+        v
+   Watermark Score
+        |
+        v
+ Compare with Threshold
+        |
+   +----+----+
+   |         |
+   v         v
+Watermarked  Not Watermarked
+```
+
+# 4. SynthID-Text
+
+SynthID-Text is the generative watermarking scheme presented in the
+paper.
+
+``` text
+              Watermarking Key
+                     |
+                     v
+             Random Seed Generator
+                     |
+                     v
+                Random Seed
+                     |
+                     v
+              Tournament Sampling
+                     ^
+                     |
+       LLM Probability Distribution
+                     |
+                     v
+                Output Token
+                     |
+                     v
+                Generated Text
+                     |
+                     v
+              Scoring Function
+                     |
+                     v
+                   Score
+                     |
+                     v
+                 Threshold
+                     |
+                     v
+        Watermarked / Not Watermarked
+```
+
+# 5. Tournament Sampling
+
+## 5.1 Basic Idea
+
+Tournament Sampling is the sampling algorithm introduced for
+SynthID-Text.
+
+The basic process is:
+
+1.  Start with candidate tokens from the LLM probability distribution.
+2.  Assign candidates pseudorandom `g`-values using the watermarking
+    seed.
+3.  Make candidates compete against each other.
+4.  The candidate with the higher `g`-value wins a match.
+5.  Continue through multiple tournament layers.
+6.  The final winning token is selected.
+
+``` text
+Candidate Tokens
+      |
+      v
+Competition
+      |
+      v
+   Winners
+      |
+      v
+Next Tournament Layer
+      |
+      v
+   Winners
+      |
+      v
+    ...
+      |
+      v
+Final Winner
+      |
+      v
+Output Token
+```
+
+## 5.2 `g`-Values
+
+For each candidate token, a pseudorandom `g`-value is generated using
+the watermarking seed. The `g`-values determine which candidate wins a
+tournament match.
+
+Example:
+
+``` text
+Token A -> g(A) = 0.73
+Token B -> g(B) = 0.41
+
+0.73 > 0.41
+
+Winner = Token A
+```
+
+# 6. Tournament Layers
+
+Tournament Sampling is performed through multiple layers. The paper
+generally uses:
+
+``` text
+m = 30 layers
+```
+
+Simplified:
+
+``` text
+Layer 1 -> Competition -> Winners
+Layer 2 -> Competition -> Winners
+Layer 3 -> Competition -> Winners
+...
+Layer 30 -> Final competition -> Final winner
+```
+
+# 7. Non-Distortionary vs Distortionary Tournament Sampling
+
+The paper distinguishes configurations according to the number of
+competitors in each tournament match.
+
+## 7.1 Non-Distortionary
+
+``` text
+Competitors per match = 2
+```
+
+Two candidate tokens compete in each match. The paper describes this as
+non-distortionary at the token level.
+
+``` text
+Token A ----             >---- Winner
+Token B ----/
+```
+
+## 7.2 Distortionary
+
+``` text
+Competitors per match > 2
+```
+
+More than two candidates can compete in a match. This creates a stronger
+watermarking effect, but can introduce distortion into token selection
+and potentially affect text quality.
+
+``` text
+Token A ----Token B -----Token C ------>---- Winner
+Token D -----/
+```
+
+# 8. Why Tournament Sampling Is Useful
+
+Tournament Sampling introduces watermark information during generation
+rather than modifying completed text. The paper evaluates it while
+balancing:
+
+-   Detectability
+-   Text quality
+-   Computational cost
+-   Scalability
+
+# 9. Complete Conceptual Flow
+
+``` text
+                    GENERATION
+                         |
+                         v
+                   Input Context
+                         |
+                         v
+                       LLM
+                         |
+                         v
+              Next-token distribution
+                         |
+                         v
+              Random Seed Generator
+                         ^
+                         |
+                 Watermarking Key
+                         |
+                         v
+                    Random Seed
+                         |
+                         v
+                Tournament Sampling
+                         |
+                         v
+                  Output Token
+                         |
+                         v
+                  Generated Text
+                         |
+                         v
+                    DETECTION
+                         |
+                         v
+                  Scoring Function
+                         ^
+                         |
+                 Watermarking Key
+                         |
+                         v
+                  Watermark Score
+                         |
+                         v
+                    Threshold
+                         |
+              +----------+----------+
+              |                     |
+              v                     v
+        Watermarked          Not Watermarked
+```
+
+# 10. Exam-Oriented Comparison
+
+  ----------------------------------------------------------------------------------
+  Feature           Generative                   Edit-Based        Data-Driven
+  ----------------- ---------------------------- ----------------- -----------------
+  Application stage During generation            After generation  During training
+
+  Main mechanism    Sampling modification        Text              Training-data
+                                                 transformation    modification
+
+  Example           Tournament Sampling          Synonym           Trigger phrases
+                                                 substitution      
+
+  Requires changing No                           Yes               No
+  generated text                                                   
+  afterward?                                                       
+
+  Trigger phrases   No                           No                Yes, in the
+  required?                                                        approach
+                                                                   described
+
+  Potential         Designed to minimize impact  Can be noticeable Can be noticeable
+  artefacts                                                        
+
+  Main purpose in   Broad                        Watermark already Identify
+  the paper         identification/attribution   generated text    unauthorized
+                                                                   model misuse
+  ----------------------------------------------------------------------------------
+
+# 11. Key Points to Remember
+
+1.  **Generative watermarking** applies the watermark during text
+    generation.
+2.  **Edit-based watermarking** changes already-generated text.
+3.  **Data-driven watermarking** changes training data and can use
+    trigger phrases.
+4.  A generative watermarking scheme has three main components: random
+    seed generator, sampling algorithm, and scoring function.
+5.  The random seed can depend on recent context and the watermarking
+    key.
+6.  SynthID-Text uses a sliding-window seed-generation method with
+    `H = 4` in the experiments.
+7.  SynthID-Text uses **Tournament Sampling**.
+8.  Tournament Sampling uses candidate competition based on pseudorandom
+    `g`-values.
+9.  The paper generally uses **30 tournament layers** in its
+    experiments.
+10. **Two competitors per match** corresponds to the non-distortionary
+    configuration.
+11. **More than two competitors per match** gives the distortionary
+    configuration.
+12. Detection measures watermark evidence through a scoring function and
+    compares the score with a threshold.
+
+## Source
+
+Dathathri, S. et al. (2024). *Scalable watermarking for identifying
+large language model outputs*. Nature, 634, 818--824. DOI:
+`10.1038/s41586-024-08025-4`.
