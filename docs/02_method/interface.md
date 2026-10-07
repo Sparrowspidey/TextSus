@@ -118,99 +118,57 @@ The implementation should support separate g-value functions for different tourn
 Each layer produces its own g-value for a candidate token.
 
 ---
-
 ## 3. Tournament Sampling
 
-### Purpose
+### Overview
 
-Select the output token using candidate tokens sampled from the LLM distribution and watermarking g-values.
+Tournament Sampling is the sampling algorithm used by SynthID-Text to
+select the next token from multiple independently sampled candidate
+tokens.
 
-Tournament Sampling is the sampling algorithm used by SynthID-Text.
+The method assigns each candidate a pseudorandom g-value and selects
+the candidate with the highest g-value.
 
-For an `m`-layer tournament, the paper uses:
-
-    M = 2^m
-
-candidate tokens.
-
-### Interface
-
-    tournament_sample(
-        token_ids,
-        seed,
-        num_layers
-    ) -> selected_token
-
-### Inputs
-
-
- `token_ids` - Candidate token IDs sampled from the LLM distribution 
- `seed` - Random seed used by the watermarking functions 
- `num_layers` -  Number of tournament layers 
-
-### Output
-
-
- `selected_token` - Final token selected by Tournament Sampling 
-
-### Candidate count
-
-For an `m`-layer tournament:
-
-    M = 2^m
-
-Examples:
-
-    m = 1  →  M = 2
-    m = 2  →  M = 4
-    m = 3  →  M = 8
-
-### Tournament process
-
-    LLM distribution
-           ↓
-    Sample M = 2^m candidate tokens
-           ↓
-    Randomly form pairs
-           ↓
-    Tournament layer 1
-           ↓
-    Compare g_1 values
-           ↓
-    Retain winners
-           ↓
-    Tournament layer 2
-           ↓
-    Compare g_2 values
-           ↓
-    Retain winners
-           ↓
-          ...
-           ↓
-    Tournament layer m
-           ↓
-    One final winner
-           ↓
-    Output token
-
-For each tournament layer:
-
-1. Candidate tokens are grouped into pairs.
-2. The corresponding layer's g-value function is applied.
-3. The token with the higher g-value wins.
-4. Ties are broken randomly.
-5. The winners continue to the next layer.
-6. The process continues until one token remains.
-
-### Requirements
-
-- The implementation must support a configurable number of tournament layers.
-- The initial candidate count must be `2^m` for an `m`-layer tournament.
-- Each tournament layer must use its corresponding g-value function.
-- Ties must be handled according to the tournament algorithm.
-- The final remaining token is the output token.
+The paper describes both a single-layer formulation and a multilayer
+formulation.
 
 ---
+
+### Single-Layer Tournament Sampling
+
+For a single tournament layer, `N` candidate tokens are sampled
+independently from the language model distribution.
+
+For each candidate token `x`, a g-value is computed using:
+
+- the candidate token,
+- the random seed,
+- the tournament layer.
+
+The candidates with the maximum g-value are retained.
+
+If multiple candidates have the same maximum g-value, one of them is
+selected uniformly at random.
+
+#### Process
+
+    text
+N candidate tokens
+       |
+       v
+Compute g-values
+       |
+       v
+Find maximum g-value
+       |
+       v
+Keep all maximum-g candidates
+       |
+       v
+Uniform random selection
+       |
+       v
+Selected token
 
 ## 4. Mean Watermark Score
 
