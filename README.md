@@ -191,7 +191,18 @@ Shared settings follow the paper unless stated otherwise: sliding-window seed wi
 
 ## Results
 
-_To be filled in as experiments finish. Figures go in `results/figures/`, tables in `results/tables/`._
+All results are from GPT-2 on CPU with 10 to 50 prompts, so they are a small-scale check of the method, not a reproduction of the paper's numbers. Full tables are in `results/tables/` and plots in `results/figures/`.
+
+| Experiment | Script | Main result |
+|---|---|---|
+| Detectability | `run_detectability.py` | TPR @ 1% FPR = 0.90 to 1.0; watermarked scores ~0.6 to 0.7 vs ~0.5 unwatermarked |
+| Quality | `run_quality.py` | Mean perplexity 8.5 (watermarked) vs 10.1; Self-BLEU 3.9 vs 4.3; no degradation observed |
+| Latency | `run_latency.py` | ~87 ms/token for all methods; overhead within noise |
+| Length / temperature | `run_length_temperature_sweep.py` | Flat TPR (0.9 Tournament, 1.0 Gumbel) because n = 10 is too small for a stable 1% threshold |
+| Layer ablation | `run_layer_ablation.py` | With top-k = 500, score rises then plateaus; with top-k = 100 it declines because of duplicate candidates |
+| Distortionary vs Soft Red List | `run_distortionary_comparison.py` | Tournament reaches TPR 1.0 with log-perplexity +0.003 to +0.07; Soft Red List needs delta >= 2 at +0.10 to +0.30 |
+
+Known limitations: GPT-2 only, small samples, context masking not wired into the generator, and speculative sampling and paraphrase robustness not evaluated.
 
 ---
 
