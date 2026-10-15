@@ -12,3 +12,4 @@ data/*
 *.safetensors
 uv.lock
 
+TextSus_Code_Dump.txt
